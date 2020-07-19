@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "224132148975",
+    "firebase_url": "https://crowd-air.firebaseio.com",
+    "project_id": "crowd-air",
+    "storage_bucket": "crowd-air.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224132148975:android:ff676f3bf179073fb5351a",
+        "android_client_info": {
+          "package_name": "com.crowd.air"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "224132148975-u5o12h152e4kdmqsc3ib7i4ht06mv573.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0uZ-O4ggpxDEcs6BgEz1nH18L6ALKZq4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "224132148975-u5o12h152e4kdmqsc3ib7i4ht06mv573.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
