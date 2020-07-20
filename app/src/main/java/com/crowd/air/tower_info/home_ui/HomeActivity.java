@@ -3,7 +3,11 @@ package com.crowd.air.tower_info.home_ui;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Looper;
 import android.telephony.CellIdentityGsm;
 import android.telephony.CellIdentityLte;
 import android.telephony.CellIdentityWcdma;
@@ -11,6 +15,8 @@ import android.telephony.CellInfo;
 import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoLte;
 import android.telephony.CellInfoWcdma;
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -37,6 +43,7 @@ public class HomeActivity extends AppCompatActivity {
     private int slotIndex;
     private int MY_PERMISSIONS_REQUEST_LOCATION;
     private Timer timer;
+    private String networkInfoStr;
 
 
     @Override
@@ -55,6 +62,50 @@ public class HomeActivity extends AppCompatActivity {
         viewPager.setAdapter(homeSectionsPagerAdapter);
         TabLayout tabs = findViewById(R.id.tabs);
         tabs.setupWithViewPager(viewPager);
+
+        startGatherMetrics();
+
+    }
+
+    public void startGatherMetrics() {
+
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        final TelephonyManager telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+
+
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        if (networkInfo != null) {
+            networkInfoStr = connectivityManager.getActiveNetworkInfo().toString();
+
+            // gather Network Capabilities
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                Network network = connectivityManager.getActiveNetwork();
+                networkInfoStr += "; " + connectivityManager.getNetworkCapabilities(network).toString();
+            }
+        }
+        Log.d("A_NETWORK_INFO", networkInfoStr);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                telephonyManager.listen(new PhoneStateListener() {
+                    @Override
+                    public void onSignalStrengthsChanged(SignalStrength signalStrength) {
+                        super.onSignalStrengthsChanged(signalStrength);
+                        Log.d("A_NETWORK_METRICS",
+                                "Signal Strength (0-4 / dBm):" + " / "+signalStrength.toString());
+                                       ;
+//                        + getDbm(signalStrength))
+//                        getLevel(signalStrength) +
+                    }
+                }, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+
+                Looper.loop();
+            }
+        }).start();
+
     }
 
     @Override
@@ -163,12 +214,12 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private ArrayList<CellInfo> updateCellInfo(ArrayList<CellInfo> cellInfo) {
-          //Create new ArrayList
+        //Create new ArrayList
         ArrayList<CellInfo> cellInfos = new ArrayList<>();
-      //cellInfo is obtained from telephonyManager.getAllCellInfo()
+        //cellInfo is obtained from telephonyManager.getAllCellInfo()
         if (cellInfo.size() != 0) {
             for (int i = 0; i < cellInfo.size(); i++) {
-               //Return registered cells only
+                //Return registered cells only
                 int index = 0;
                 CellInfo temp = cellInfo.get(i);
                 if (temp.isRegistered()) {
