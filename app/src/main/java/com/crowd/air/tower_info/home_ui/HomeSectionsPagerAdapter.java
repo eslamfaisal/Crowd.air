@@ -10,8 +10,8 @@ import androidx.fragment.app.FragmentPagerAdapter;
 
 import com.crowd.air.R;
 import com.crowd.air.tower_info.home_ui.fragments.DeviceInfoFragment;
-import com.crowd.air.tower_info.home_ui.slot_one.SlotOneFragment;
-import com.crowd.air.tower_info.home_ui.slot_two.SlotTwoFragment;
+import com.crowd.air.tower_info.home_ui.slots.SlotOneFragment;
+
 
 
 /**

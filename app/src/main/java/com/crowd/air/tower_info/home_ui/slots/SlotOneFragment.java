@@ -1,4 +1,4 @@
-package com.crowd.air.tower_info.home_ui.slot_one;
+package com.crowd.air.tower_info.home_ui.slots;
 
 import android.os.Build;
 import android.os.Bundle;
@@ -18,7 +18,6 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.crowd.air.R;
-import com.crowd.air.tower_info.home_ui.HomeActivity;
 import com.crowd.air.tower_info.home_ui.HomeViewModel;
 import com.crowd.air.tower_info.model.stations.BaseStation;
 
@@ -234,6 +233,7 @@ public class SlotOneFragment extends Fragment {
             @Override
             public void onChanged(BaseStation baseStation) {
 
+                Log.d(TAG, "onChangedbaseStation: "+baseStation.toString());
 
                 // common fields
                 cell_type_tv.setText(String.valueOf(baseStation.getType()));

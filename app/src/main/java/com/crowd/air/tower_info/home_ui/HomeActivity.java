@@ -3,6 +3,9 @@ package com.crowd.air.tower_info.home_ui;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkInfo;
@@ -29,11 +32,19 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.viewpager.widget.ViewPager;
 
 import com.crowd.air.R;
+import com.crowd.air.tower_info.model.apis.CellLocationRequest;
+import com.crowd.air.tower_info.model.apis.CellLocationResponse;
+import com.crowd.air.tower_info.model.apis.CellRequest;
+import com.crowd.air.tower_info.server.BaseClient;
 import com.google.android.material.tabs.TabLayout;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 
 public class HomeActivity extends AppCompatActivity {
@@ -45,11 +56,38 @@ public class HomeActivity extends AppCompatActivity {
     private Timer timer;
     private String networkInfoStr;
 
+    private LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+
+            Log.i(TAG, "Location changed...");
+            Log.i(TAG, "Latitude :        " + location.getLatitude());
+            Log.i(TAG, "Longitude :       " + location.getLongitude());
+        }
+
+        @Override
+        public void onStatusChanged(String s, int i, Bundle bundle) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String s) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String s) {
+
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+
+
 
         ActivityCompat.requestPermissions(this,
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.READ_PHONE_STATE},
@@ -63,7 +101,62 @@ public class HomeActivity extends AppCompatActivity {
         TabLayout tabs = findViewById(R.id.tabs);
         tabs.setupWithViewPager(viewPager);
 
-        startGatherMetrics();
+//        startGatherMetrics();
+
+        getLocation();
+
+        BaseClient.getApi().getCellLocation(buildRequestObject()).enqueue(new Callback<CellLocationResponse>() {
+            @Override
+            public void onResponse(Call<CellLocationResponse> call, Response<CellLocationResponse> response) {
+                Log.d(TAG, "onResponse: "+response.body());
+            }
+
+            @Override
+            public void onFailure(Call<CellLocationResponse> call, Throwable t) {
+
+            }
+        });
+    }
+
+    private CellLocationRequest buildRequestObject(){
+
+        CellLocationRequest cellLocationRequest = new CellLocationRequest();
+
+        cellLocationRequest.setToken("93bb0cb1301e27");
+        cellLocationRequest.setRadio("cdma");
+        cellLocationRequest.setMnc(404);
+        cellLocationRequest.setAddress(1);
+
+        List<CellRequest> cellRequests = new ArrayList<>();
+
+        CellRequest cellRequest = new CellRequest();
+        cellRequest.setCid(4864);
+        cellRequest.setLac(7);
+
+        cellRequests.add(cellRequest);
+
+        cellLocationRequest.setCellRequests(cellRequests);
+
+        return cellLocationRequest;
+
+    }
+    private void getLocation() {
+
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        String provider = LocationManager.GPS_PROVIDER;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        locationManager.requestLocationUpdates(provider, 1000, 1, locationListener);//参数依次为provider（GPS，或者NETWORK_PROVIDER或PASSIVE_PROVIDER），执行更新的最小时间，执行更新的最小距离，更新后的listener
+//        locationManager.requestSingleUpdate(provider, locationListener, null);//或者仅仅进行单词更新
+
 
     }
 
