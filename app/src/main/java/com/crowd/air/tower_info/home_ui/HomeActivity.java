@@ -35,6 +35,7 @@ import com.crowd.air.R;
 import com.crowd.air.tower_info.model.apis.CellLocationRequest;
 import com.crowd.air.tower_info.model.apis.CellLocationResponse;
 import com.crowd.air.tower_info.model.apis.CellRequest;
+import com.crowd.air.tower_info.model.device.DeviceInfo;
 import com.crowd.air.tower_info.server.BaseClient;
 import com.google.android.material.tabs.TabLayout;
 
@@ -47,14 +48,15 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 
-public class HomeActivity extends AppCompatActivity {
+public class    HomeActivity extends AppCompatActivity {
 
     private static final String TAG = "HomeActivity";
     public HomeViewModel homeViewModel;
     private int slotIndex;
     private int MY_PERMISSIONS_REQUEST_LOCATION;
     private Timer timer;
-    private String networkInfoStr;
+
+    private DeviceInfo deviceInfo;
 
     private LocationListener locationListener = new LocationListener() {
         @Override
@@ -63,6 +65,11 @@ public class HomeActivity extends AppCompatActivity {
             Log.i(TAG, "Location changed...");
             Log.i(TAG, "Latitude :        " + location.getLatitude());
             Log.i(TAG, "Longitude :       " + location.getLongitude());
+
+            deviceInfo.setLat(location.getLatitude());
+            deviceInfo.setLng(location.getLongitude());
+
+
         }
 
         @Override
@@ -87,6 +94,7 @@ public class HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
+        deviceInfo = new DeviceInfo();
 
 
         ActivityCompat.requestPermissions(this,
@@ -101,45 +109,13 @@ public class HomeActivity extends AppCompatActivity {
         TabLayout tabs = findViewById(R.id.tabs);
         tabs.setupWithViewPager(viewPager);
 
-//        startGatherMetrics();
 
         getLocation();
 
-        BaseClient.getApi().getCellLocation(buildRequestObject()).enqueue(new Callback<CellLocationResponse>() {
-            @Override
-            public void onResponse(Call<CellLocationResponse> call, Response<CellLocationResponse> response) {
-                Log.d(TAG, "onResponse: "+response.body());
-            }
-
-            @Override
-            public void onFailure(Call<CellLocationResponse> call, Throwable t) {
-
-            }
-        });
-    }
-
-    private CellLocationRequest buildRequestObject(){
-
-        CellLocationRequest cellLocationRequest = new CellLocationRequest();
-
-        cellLocationRequest.setToken("93bb0cb1301e27");
-        cellLocationRequest.setRadio("cdma");
-        cellLocationRequest.setMnc(404);
-        cellLocationRequest.setAddress(1);
-
-        List<CellRequest> cellRequests = new ArrayList<>();
-
-        CellRequest cellRequest = new CellRequest();
-        cellRequest.setCid(4864);
-        cellRequest.setLac(7);
-
-        cellRequests.add(cellRequest);
-
-        cellLocationRequest.setCellRequests(cellRequests);
-
-        return cellLocationRequest;
 
     }
+
+
     private void getLocation() {
 
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -160,46 +136,6 @@ public class HomeActivity extends AppCompatActivity {
 
     }
 
-    public void startGatherMetrics() {
-
-        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-
-        final TelephonyManager telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-
-
-        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-        if (networkInfo != null) {
-            networkInfoStr = connectivityManager.getActiveNetworkInfo().toString();
-
-            // gather Network Capabilities
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                Network network = connectivityManager.getActiveNetwork();
-                networkInfoStr += "; " + connectivityManager.getNetworkCapabilities(network).toString();
-            }
-        }
-        Log.d("A_NETWORK_INFO", networkInfoStr);
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                telephonyManager.listen(new PhoneStateListener() {
-                    @Override
-                    public void onSignalStrengthsChanged(SignalStrength signalStrength) {
-                        super.onSignalStrengthsChanged(signalStrength);
-                        Log.d("A_NETWORK_METRICS",
-                                "Signal Strength (0-4 / dBm):" + " / "+signalStrength.toString());
-                                       ;
-//                        + getDbm(signalStrength))
-//                        getLevel(signalStrength) +
-                    }
-                }, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
-
-                Looper.loop();
-            }
-        }).start();
-
-    }
 
     @Override
     protected void onResume() {

@@ -113,13 +113,12 @@ public class HomeViewModel extends ViewModel {
             }
 
 
-            try{
+            try {
                 Log.d(TAG, "slotIndexslotIndex: " + slotIndex);
                 BaseStation bs = bindData(registerCellInfo.get(slotIndex));
-            }catch (Exception e){
+            } catch (Exception e) {
 
             }
-
 
 
         }
@@ -143,6 +142,13 @@ public class HomeViewModel extends ViewModel {
             station.setLac(cellIdentityGsm.getLac());
             station.setMcc(cellIdentityGsm.getMcc());
             station.setMnc(cellIdentityGsm.getMnc());
+            station.setBsic_psc_pci(cellIdentityGsm.getPsc());
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                if (cellIdentityGsm.getBsic() != 0) {
+                    station.setBsic_psc_pci(cellIdentityGsm.getBsic());
+                }
+            }
 
             station.getGsmStation().setPsc(cellIdentityGsm.getPsc());
 
@@ -192,6 +198,7 @@ public class HomeViewModel extends ViewModel {
             station.setLac(cellIdentityWcdma.getLac());
             station.setMcc(cellIdentityWcdma.getMcc());
             station.setMnc(cellIdentityWcdma.getMnc());
+            station.setBsic_psc_pci(cellIdentityWcdma.getPsc());
 
             station.getWcdmaStation().setPsc(cellIdentityWcdma.getPsc());
             // endregion
@@ -238,8 +245,11 @@ public class HomeViewModel extends ViewModel {
             station.setMcc(cellIdentityLte.getMcc());
             station.setMnc(cellIdentityLte.getMnc());
             station.setCid(cellIdentityLte.getCi());
+            station.setBsic_psc_pci(cellIdentityLte.getPci());
+
             station.getLteStation().setPci(cellIdentityLte.getPci());
             station.setTac(cellIdentityLte.getTac());
+
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 station.getLteStation().setEarfcn(cellIdentityLte.getEarfcn());

@@ -1,9 +1,17 @@
 package com.crowd.air.tower_info.home_ui.slots;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.telephony.CellInfo;
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,11 +27,20 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.crowd.air.R;
 import com.crowd.air.tower_info.home_ui.HomeViewModel;
+import com.crowd.air.tower_info.model.apis.CellLocationRequest;
+import com.crowd.air.tower_info.model.apis.CellLocationResponse;
+import com.crowd.air.tower_info.model.apis.CellRequest;
 import com.crowd.air.tower_info.model.stations.BaseStation;
+import com.crowd.air.tower_info.server.BaseClient;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 
 /**
@@ -66,6 +83,9 @@ public class SlotOneFragment extends Fragment {
             wcdma_signal_strength_view, gsm_signal_strength_view,
             lte_signal_strength_view;
 
+
+    private TextView cell_lon_tv,cell_lat_tv,cell_accuracy_tv,cell_address_tv;
+
     private int slotIndex = 0;
 
     private Timer timer;
@@ -78,27 +98,6 @@ public class SlotOneFragment extends Fragment {
         return fragment;
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (timer == null) {
-            timer = new Timer();
-            timer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    requireActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-
-                            homeViewModel.getSlotData(requireActivity(),slotIndex);
-                            homeViewModel.showCellinfo(requireActivity());
-
-                        }
-                    });
-                }
-            }, 500, 1500);
-        }
-    }
 
     @Override
     public void onDestroy() {
@@ -130,6 +129,7 @@ public class SlotOneFragment extends Fragment {
 
         initView(view);
 
+        startGatherMetrics();
     }
 
     private void initView(View view) {
@@ -192,7 +192,33 @@ public class SlotOneFragment extends Fragment {
         cqi_lte_signal_tv = view.findViewById(R.id.cqi_lte_signal_tv);
         timingAdvance_lte_signal_tv = view.findViewById(R.id.timingAdvance_lte_signal_tv);
 
+
+        // Cell location
+
+        cell_lon_tv = view.findViewById(R.id.cell_lon_tv);
+        cell_lat_tv = view.findViewById(R.id.cell_lat_tv);
+        cell_accuracy_tv = view.findViewById(R.id.cell_accuracy_tv);
+        cell_address_tv = view.findViewById(R.id.cell_address_tv);
     }
+
+    Callback<CellLocationResponse> callback = new Callback<CellLocationResponse>() {
+        @Override
+        public void onResponse(Call<CellLocationResponse> call, Response<CellLocationResponse> response) {
+            Log.d(TAG, "onResponse: "+response.body());
+
+            if (response.isSuccessful()){
+                cell_lon_tv.setText(response.body().getLon().toString());
+                cell_lat_tv.setText(response.body().getLat().toString());
+                cell_accuracy_tv.setText(response.body().getAccuracy().toString());
+                cell_address_tv.setText(response.body().getAddress().toString());
+            }
+        }
+
+        @Override
+        public void onFailure(Call<CellLocationResponse> call, Throwable t) {
+
+        }
+    };
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
@@ -229,247 +255,247 @@ public class SlotOneFragment extends Fragment {
             }
         });
 
-        homeViewModel.getBaseStation().observe(getViewLifecycleOwner(), new Observer<BaseStation>() {
-            @Override
-            public void onChanged(BaseStation baseStation) {
+        homeViewModel.getBaseStation().observe(getViewLifecycleOwner(), baseStation -> {
 
-                Log.d(TAG, "onChangedbaseStation: "+baseStation.toString());
+            BaseClient.getApi().getCellLocation(buildRequestObject(baseStation)).enqueue(callback);
+            Log.d(TAG, "onChangedbaseStation: "+baseStation.toString());
 
-                // common fields
-                cell_type_tv.setText(String.valueOf(baseStation.getType()));
+            // common fields
+            cell_type_tv.setText(String.valueOf(baseStation.getType()));
 
-                if (baseStation.getTac() != 0)
-                    tac_tv.setText(String.valueOf(baseStation.getTac()));
-                else
-                    tac_tv.getRootView().findViewById(R.id.tac_view).setVisibility(View.GONE);
+            if (baseStation.getTac() != 0)
+                tac_tv.setText(String.valueOf(baseStation.getTac()));
+            else
+                tac_tv.getRootView().findViewById(R.id.tac_view).setVisibility(View.GONE);
 
-                switch (baseStation.getType()) {
+            switch (baseStation.getType()) {
 
-                    case GSM: {
+                case GSM: {
 
-                        // region GSM views
-                        gsm_cel_info_view.setVisibility(View.VISIBLE);
-                        gsm_signal_strength_view.setVisibility(View.VISIBLE);
-                        wcdma_view.setVisibility(View.GONE);
-                        lte_cell_info_view.setVisibility(View.GONE);
-                        wcdma_signal_strength_view.setVisibility(View.GONE);
-                        lte_signal_strength_view.setVisibility(View.GONE);
 
-                        // region GSM Station info
 
-                        if (baseStation.getGsmStation().getPsc() != 0)
-                            psc_gsm_tv.setText(String.valueOf(baseStation.getGsmStation().getPsc()));
-                        else
-                            psc_gsm_tv.getRootView().findViewById(R.id.psc_gsm_view).setVisibility(View.GONE);
+                    // region GSM views
+                    gsm_cel_info_view.setVisibility(View.VISIBLE);
+                    gsm_signal_strength_view.setVisibility(View.VISIBLE);
+                    wcdma_view.setVisibility(View.GONE);
+                    lte_cell_info_view.setVisibility(View.GONE);
+                    wcdma_signal_strength_view.setVisibility(View.GONE);
+                    lte_signal_strength_view.setVisibility(View.GONE);
 
-                        if (baseStation.getGsmStation().getArfcn() != 0)
-                            arfcn_gsm_tv.setText(String.valueOf(baseStation.getGsmStation().getArfcn()));
-                        else
-                            arfcn_gsm_tv.getRootView().findViewById(R.id.arfcn_gsm_view).setVisibility(View.GONE);
+                    // region GSM Station info
 
-                        if (baseStation.getGsmStation().getMccString() != null)
-                            mcc_string_gsm_tv.setText(baseStation.getGsmStation().getMccString());
-                        else
-                            mcc_string_gsm_tv.getRootView().findViewById(R.id.mcc_string_gsm_view).setVisibility(View.GONE);
+                    if (baseStation.getGsmStation().getPsc() != 0)
+                        psc_gsm_tv.setText(String.valueOf(baseStation.getGsmStation().getPsc()));
+                    else
+                        psc_gsm_tv.getRootView().findViewById(R.id.psc_gsm_view).setVisibility(View.GONE);
 
-                        if (baseStation.getGsmStation().getMncString() != null)
-                            mnc_string_gsm_tv.setText(baseStation.getGsmStation().getMncString());
-                        else
-                            mnc_string_gsm_tv.getRootView().findViewById(R.id.mnc_string_gsm_view).setVisibility(View.GONE);
+                    if (baseStation.getGsmStation().getArfcn() != 0)
+                        arfcn_gsm_tv.setText(String.valueOf(baseStation.getGsmStation().getArfcn()));
+                    else
+                        arfcn_gsm_tv.getRootView().findViewById(R.id.arfcn_gsm_view).setVisibility(View.GONE);
 
-                        if (baseStation.getGsmStation().getMobileNetworkOperator() != null)
-                            mobilen_etwork_operator_gsm_tv.setText(baseStation.getGsmStation().getMobileNetworkOperator());
-                        else
-                            mobilen_etwork_operator_gsm_tv.getRootView().findViewById(R.id.mobilen_etwork_operator_gsm_view).setVisibility(View.GONE);
+                    if (baseStation.getGsmStation().getMccString() != null)
+                        mcc_string_gsm_tv.setText(baseStation.getGsmStation().getMccString());
+                    else
+                        mcc_string_gsm_tv.getRootView().findViewById(R.id.mcc_string_gsm_view).setVisibility(View.GONE);
 
-                        if (baseStation.getGsmStation().getBsic() != 0)
-                            bsic_gsm_tv.setText(String.valueOf(baseStation.getGsmStation().getBsic()));
-                        else
-                            bsic_gsm_tv.getRootView().findViewById(R.id.bsic_gsm_view).setVisibility(View.GONE);
+                    if (baseStation.getGsmStation().getMncString() != null)
+                        mnc_string_gsm_tv.setText(baseStation.getGsmStation().getMncString());
+                    else
+                        mnc_string_gsm_tv.getRootView().findViewById(R.id.mnc_string_gsm_view).setVisibility(View.GONE);
 
-                        // endregion
+                    if (baseStation.getGsmStation().getMobileNetworkOperator() != null)
+                        mobilen_etwork_operator_gsm_tv.setText(baseStation.getGsmStation().getMobileNetworkOperator());
+                    else
+                        mobilen_etwork_operator_gsm_tv.getRootView().findViewById(R.id.mobilen_etwork_operator_gsm_view).setVisibility(View.GONE);
 
-                        // region GSM Signal Strength
+                    if (baseStation.getGsmStation().getBsic() != 0)
+                        bsic_gsm_tv.setText(String.valueOf(baseStation.getGsmStation().getBsic()));
+                    else
+                        bsic_gsm_tv.getRootView().findViewById(R.id.bsic_gsm_view).setVisibility(View.GONE);
 
-                        dbm_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getDbm()));
+                    // endregion
 
-                        signalLevel_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getSignalLevel()));
+                    // region GSM Signal Strength
 
-                        asuLevel_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getAsuLevel()));
+                    dbm_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getDbm()));
 
-                        if (baseStation.getGsmStation().getGsmSignalStrength().getRssi() != 0)
-                            rssi_gsm_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getRssi()));
-                        else
-                            rssi_gsm_signal_tv.getRootView().findViewById(R.id.rssi_gsm_signal_view).setVisibility(View.GONE);
+                    signalLevel_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getSignalLevel()));
 
+                    asuLevel_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getAsuLevel()));
 
-                        //endregion
+                    if (baseStation.getGsmStation().getGsmSignalStrength().getRssi() != 0)
+                        rssi_gsm_signal_tv.setText(String.valueOf(baseStation.getGsmStation().getGsmSignalStrength().getRssi()));
+                    else
+                        rssi_gsm_signal_tv.getRootView().findViewById(R.id.rssi_gsm_signal_view).setVisibility(View.GONE);
 
-                        // endregion
 
-                        break;
-                    }
-                    case WCDMA: {
+                    //endregion
 
-                        // region WCDMA views
-                        wcdma_view.setVisibility(View.VISIBLE);
-                        wcdma_signal_strength_view.setVisibility(View.VISIBLE);
-                        gsm_cel_info_view.setVisibility(View.GONE);
-                        gsm_signal_strength_view.setVisibility(View.GONE);
-                        lte_cell_info_view.setVisibility(View.GONE);
-                        lte_signal_strength_view.setVisibility(View.GONE);
+                    // endregion
 
-                        if (baseStation.getWcdmaStation().getMobileNetworkOperator() != null)
-                            mobilen_etwork_operator_wcdma_tv.setText(baseStation.getWcdmaStation().getMobileNetworkOperator());
-                        else
-                            mobilen_etwork_operator_wcdma_tv.getRootView().findViewById(R.id.mobilen_etwork_operator_wcdma_view).setVisibility(View.GONE);
+                    break;
+                }
+                case WCDMA: {
 
-                        if (baseStation.getWcdmaStation().getPsc() != 0)
-                            psc_wcdma_tv.setText(String.valueOf(baseStation.getWcdmaStation().getPsc()));
-                        else
-                            psc_wcdma_tv.getRootView().findViewById(R.id.psc_wcdma_view).setVisibility(View.GONE);
+                    // region WCDMA views
+                    wcdma_view.setVisibility(View.VISIBLE);
+                    wcdma_signal_strength_view.setVisibility(View.VISIBLE);
+                    gsm_cel_info_view.setVisibility(View.GONE);
+                    gsm_signal_strength_view.setVisibility(View.GONE);
+                    lte_cell_info_view.setVisibility(View.GONE);
+                    lte_signal_strength_view.setVisibility(View.GONE);
 
-                        if (baseStation.getWcdmaStation().getMccString() != null)
-                            mcc_string_wcdma_tv.setText(baseStation.getWcdmaStation().getMccString());
-                        else
-                            mcc_string_wcdma_tv.getRootView().findViewById(R.id.mcc_string_wcdma_view).setVisibility(View.GONE);
+                    if (baseStation.getWcdmaStation().getMobileNetworkOperator() != null)
+                        mobilen_etwork_operator_wcdma_tv.setText(baseStation.getWcdmaStation().getMobileNetworkOperator());
+                    else
+                        mobilen_etwork_operator_wcdma_tv.getRootView().findViewById(R.id.mobilen_etwork_operator_wcdma_view).setVisibility(View.GONE);
 
-                        if (baseStation.getWcdmaStation().getMncString() != null)
-                            mnc_string_wcdma_tv.setText(baseStation.getWcdmaStation().getMncString());
-                        else
-                            mnc_string_wcdma_tv.getRootView().findViewById(R.id.mnc_string_wcdma_view).setVisibility(View.GONE);
+                    if (baseStation.getWcdmaStation().getPsc() != 0)
+                        psc_wcdma_tv.setText(String.valueOf(baseStation.getWcdmaStation().getPsc()));
+                    else
+                        psc_wcdma_tv.getRootView().findViewById(R.id.psc_wcdma_view).setVisibility(View.GONE);
 
-                        if (baseStation.getWcdmaStation().getUarfcn() != 0)
-                            uarfcn_tv.setText(String.valueOf(baseStation.getWcdmaStation().getUarfcn()));
-                        else
-                            uarfcn_tv.getRootView().findViewById(R.id.uarfcn_view).setVisibility(View.GONE);
+                    if (baseStation.getWcdmaStation().getMccString() != null)
+                        mcc_string_wcdma_tv.setText(baseStation.getWcdmaStation().getMccString());
+                    else
+                        mcc_string_wcdma_tv.getRootView().findViewById(R.id.mcc_string_wcdma_view).setVisibility(View.GONE);
 
-                        // endregion
+                    if (baseStation.getWcdmaStation().getMncString() != null)
+                        mnc_string_wcdma_tv.setText(baseStation.getWcdmaStation().getMncString());
+                    else
+                        mnc_string_wcdma_tv.getRootView().findViewById(R.id.mnc_string_wcdma_view).setVisibility(View.GONE);
 
+                    if (baseStation.getWcdmaStation().getUarfcn() != 0)
+                        uarfcn_tv.setText(String.valueOf(baseStation.getWcdmaStation().getUarfcn()));
+                    else
+                        uarfcn_tv.getRootView().findViewById(R.id.uarfcn_view).setVisibility(View.GONE);
 
-                        // region WCDMA Signal Strength
+                    // endregion
 
-                        dbm_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getDbm()));
 
-                        signalLevel_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getSignalLevel()));
+                    // region WCDMA Signal Strength
 
-                        asuLevel_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getAsuLevel()));
+                    dbm_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getDbm()));
 
+                    signalLevel_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getSignalLevel()));
 
-                        if (baseStation.getWcdmaStation().getWcdmaSignalStrength().getEcNo() != 0)
-                            ecNo_gsm_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getEcNo()));
-                        else
-                            ecNo_gsm_signal_tv.getRootView().findViewById(R.id.ecNo_gsm_signal_view).setVisibility(View.GONE);
+                    asuLevel_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getAsuLevel()));
 
 
-                        //endregion
+                    if (baseStation.getWcdmaStation().getWcdmaSignalStrength().getEcNo() != 0)
+                        ecNo_gsm_signal_tv.setText(String.valueOf(baseStation.getWcdmaStation().getWcdmaSignalStrength().getEcNo()));
+                    else
+                        ecNo_gsm_signal_tv.getRootView().findViewById(R.id.ecNo_gsm_signal_view).setVisibility(View.GONE);
 
-                        break;
-                    }
-                    case LTE: {
 
-                        // region LTE views
-                        lte_cell_info_view.setVisibility(View.VISIBLE);
-                        wcdma_signal_strength_view.setVisibility(View.GONE);
-                        gsm_cel_info_view.setVisibility(View.GONE);
-                        wcdma_view.setVisibility(View.GONE);
-                        lte_signal_strength_view.setVisibility(View.VISIBLE);
+                    //endregion
 
+                    break;
+                }
+                case LTE: {
 
-                        if (baseStation.getLteStation().getPci() != 0)
-                            pci_lte_tv.setText(String.valueOf(baseStation.getLteStation().getPci()));
-                        else
-                            pci_lte_tv.getRootView().findViewById(R.id.pci_lte_view).setVisibility(View.GONE);
+                    // region LTE views
+                    lte_cell_info_view.setVisibility(View.VISIBLE);
+                    wcdma_signal_strength_view.setVisibility(View.GONE);
+                    gsm_cel_info_view.setVisibility(View.GONE);
+                    wcdma_view.setVisibility(View.GONE);
+                    lte_signal_strength_view.setVisibility(View.VISIBLE);
 
-                        if (baseStation.getLteStation().getEarfcn() != 0)
-                            erfcn_gsm_tv.setText(String.valueOf(baseStation.getLteStation().getEarfcn()));
-                        else
-                            erfcn_gsm_tv.getRootView().findViewById(R.id.erfcn_gsm_view).setVisibility(View.GONE);
 
-                        if (baseStation.getLteStation().getBandwidth() != 0)
-                            bandwidth_gsm_tv.setText(String.valueOf(baseStation.getLteStation().getBandwidth()));
-                        else
-                            bandwidth_gsm_tv.getRootView().findViewById(R.id.bandwidth_gsm_view).setVisibility(View.GONE);
+                    if (baseStation.getLteStation().getPci() != 0)
+                        pci_lte_tv.setText(String.valueOf(baseStation.getLteStation().getPci()));
+                    else
+                        pci_lte_tv.getRootView().findViewById(R.id.pci_lte_view).setVisibility(View.GONE);
 
-                        if (baseStation.getLteStation().getMobileNetworkOperator() != null)
-                            mobilen_network_operator_lte_tv.setText(baseStation.getLteStation().getMobileNetworkOperator());
-                        else
-                            mobilen_network_operator_lte_tv.getRootView().findViewById(R.id.mobilen_network_operator_lte_view).setVisibility(View.GONE);
+                    if (baseStation.getLteStation().getEarfcn() != 0)
+                        erfcn_gsm_tv.setText(String.valueOf(baseStation.getLteStation().getEarfcn()));
+                    else
+                        erfcn_gsm_tv.getRootView().findViewById(R.id.erfcn_gsm_view).setVisibility(View.GONE);
 
+                    if (baseStation.getLteStation().getBandwidth() != 0)
+                        bandwidth_gsm_tv.setText(String.valueOf(baseStation.getLteStation().getBandwidth()));
+                    else
+                        bandwidth_gsm_tv.getRootView().findViewById(R.id.bandwidth_gsm_view).setVisibility(View.GONE);
 
-                        if (baseStation.getLteStation().getMccString() != null)
-                            mcc_string_lte_tv.setText(baseStation.getLteStation().getMccString());
-                        else
-                            mcc_string_lte_tv.getRootView().findViewById(R.id.mcc_string_lte_view).setVisibility(View.GONE);
+                    if (baseStation.getLteStation().getMobileNetworkOperator() != null)
+                        mobilen_network_operator_lte_tv.setText(baseStation.getLteStation().getMobileNetworkOperator());
+                    else
+                        mobilen_network_operator_lte_tv.getRootView().findViewById(R.id.mobilen_network_operator_lte_view).setVisibility(View.GONE);
 
-                        if (baseStation.getLteStation().getMncString() != null)
-                            mnc_string_lte_tv.setText(baseStation.getLteStation().getMncString());
-                        else
-                            mnc_string_lte_tv.getRootView().findViewById(R.id.mnc_string_lte_view).setVisibility(View.GONE);
 
+                    if (baseStation.getLteStation().getMccString() != null)
+                        mcc_string_lte_tv.setText(baseStation.getLteStation().getMccString());
+                    else
+                        mcc_string_lte_tv.getRootView().findViewById(R.id.mcc_string_lte_view).setVisibility(View.GONE);
 
-                        // endregion
+                    if (baseStation.getLteStation().getMncString() != null)
+                        mnc_string_lte_tv.setText(baseStation.getLteStation().getMncString());
+                    else
+                        mnc_string_lte_tv.getRootView().findViewById(R.id.mnc_string_lte_view).setVisibility(View.GONE);
 
-                        // region LTE Signal Strength
 
-                        dbm_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getDbm()));
+                    // endregion
 
-                        signalLevel_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getSignalLevel()));
+                    // region LTE Signal Strength
 
-                        asuLevel_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getAsuLevel()));
+                    dbm_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getDbm()));
 
+                    signalLevel_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getSignalLevel()));
 
-                        if (baseStation.getLteStation().getLteSignalStrength().getRsrq() != 0)
-                            rsrq_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRsrq()));
-                        else
-                            rsrq_lte_signal_tv.getRootView().findViewById(R.id.rsrq_lte_signal_view).setVisibility(View.GONE);
+                    asuLevel_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getAsuLevel()));
 
-                        if (baseStation.getLteStation().getLteSignalStrength().getRssi() != 0)
-                            rssi_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRssi()));
-                        else
-                            rssi_lte_signal_tv.getRootView().findViewById(R.id.rssi_lte_signal_view).setVisibility(View.GONE);
 
-                        if (baseStation.getLteStation().getLteSignalStrength().getRssnr() != 0)
-                            rssnr_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRssnr()));
-                        else
-                            rssnr_lte_signal_tv.getRootView().findViewById(R.id.rssnr_lte_signal_view).setVisibility(View.GONE);
+                    if (baseStation.getLteStation().getLteSignalStrength().getRsrq() != 0)
+                        rsrq_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRsrq()));
+                    else
+                        rsrq_lte_signal_tv.getRootView().findViewById(R.id.rsrq_lte_signal_view).setVisibility(View.GONE);
 
-                        if (baseStation.getLteStation().getLteSignalStrength().getRsrp() != 0)
-                            rsrp_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRsrp()));
-                        else
-                            rsrp_lte_signal_tv.getRootView().findViewById(R.id.rsrp_lte_signal_tv).setVisibility(View.GONE);
+                    if (baseStation.getLteStation().getLteSignalStrength().getRssi() != 0)
+                        rssi_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRssi()));
+                    else
+                        rssi_lte_signal_tv.getRootView().findViewById(R.id.rssi_lte_signal_view).setVisibility(View.GONE);
 
+                    if (baseStation.getLteStation().getLteSignalStrength().getRssnr() != 0)
+                        rssnr_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRssnr()));
+                    else
+                        rssnr_lte_signal_tv.getRootView().findViewById(R.id.rssnr_lte_signal_view).setVisibility(View.GONE);
 
-                        //endregion
+                    if (baseStation.getLteStation().getLteSignalStrength().getRsrp() != 0)
+                        rsrp_lte_signal_tv.setText(String.valueOf(baseStation.getLteStation().getLteSignalStrength().getRsrp()));
+                    else
+                        rsrp_lte_signal_tv.getRootView().findViewById(R.id.rsrp_lte_signal_tv).setVisibility(View.GONE);
 
 
-                        break;
-                    }
-                    case NR: {
-                        gsm_cel_info_view.setVisibility(View.GONE);
-                        gsm_signal_strength_view.setVisibility(View.GONE);
-                        wcdma_signal_strength_view.setVisibility(View.GONE);
-                        wcdma_view.setVisibility(View.GONE);
-                        lte_signal_strength_view.setVisibility(View.GONE);
+                    //endregion
 
-                        // region WCDMA Signal Strength
 
-                        dbm_signal_tv.setText(String.valueOf(baseStation.getNrStation().getNrSignalStrength().getDbm()));
+                    break;
+                }
+                case NR: {
+                    gsm_cel_info_view.setVisibility(View.GONE);
+                    gsm_signal_strength_view.setVisibility(View.GONE);
+                    wcdma_signal_strength_view.setVisibility(View.GONE);
+                    wcdma_view.setVisibility(View.GONE);
+                    lte_signal_strength_view.setVisibility(View.GONE);
 
-                        signalLevel_signal_tv.setText(String.valueOf(baseStation.getNrStation().getNrSignalStrength().getSignalLevel()));
+                    // region WCDMA Signal Strength
 
-                        asuLevel_signal_tv.setText(String.valueOf(baseStation.getNrStation().getNrSignalStrength().getAsuLevel()));
+                    dbm_signal_tv.setText(String.valueOf(baseStation.getNrStation().getNrSignalStrength().getDbm()));
 
+                    signalLevel_signal_tv.setText(String.valueOf(baseStation.getNrStation().getNrSignalStrength().getSignalLevel()));
 
-                        //endregion
+                    asuLevel_signal_tv.setText(String.valueOf(baseStation.getNrStation().getNrSignalStrength().getAsuLevel()));
 
-                        break;
-                    }
 
+                    //endregion
+
+                    break;
                 }
 
-
             }
+
+
         });
 
         homeViewModel.getCallList().observe(getViewLifecycleOwner(), new Observer<List<CellInfo>>() {
@@ -512,4 +538,106 @@ public class SlotOneFragment extends Fragment {
 //        int ECGI = ;
         return baseStation.getCid() & 0xFFFFFFF;
     }
+
+
+    private CellLocationRequest buildRequestObject(BaseStation baseStation){
+
+        CellLocationRequest cellLocationRequest = new CellLocationRequest();
+
+        cellLocationRequest.setToken("93bb0cb1301e27");
+        cellLocationRequest.setRadio(baseStation.getType().toString());
+        cellLocationRequest.setMnc(baseStation.getMnc());
+        cellLocationRequest.setMcc(baseStation.getMcc());
+        cellLocationRequest.setAddress(1);
+
+        List<CellRequest> cellRequests = new ArrayList<>();
+
+        CellRequest cellRequest = new CellRequest();
+        cellRequest.setCid(baseStation.getCid());
+        cellRequest.setLac(baseStation.getLac());
+        cellRequest.setPsc(baseStation.getBsic_psc_pci());
+
+
+        cellRequests.add(cellRequest);
+
+        cellLocationRequest.setCellRequests(cellRequests);
+
+        return cellLocationRequest;
+
+    }
+
+    private String networkInfoStr;
+
+    public void startGatherMetrics() {
+
+        ConnectivityManager connectivityManager = (ConnectivityManager) requireActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        final TelephonyManager telephonyManager = (TelephonyManager) requireActivity().getSystemService(Context.TELEPHONY_SERVICE);
+
+
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        if (networkInfo != null) {
+            networkInfoStr = connectivityManager.getActiveNetworkInfo().toString();
+
+            // gather Network Capabilities
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                Network network = connectivityManager.getActiveNetwork();
+                networkInfoStr += "; " + connectivityManager.getNetworkCapabilities(network).toString();
+            }
+        }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                telephonyManager.listen(new PhoneStateListener() {
+                    @Override
+                    public void onSignalStrengthsChanged(SignalStrength signalStrength) {
+                        super.onSignalStrengthsChanged(signalStrength);
+
+                        Log.d("A_NETWORK_METRICS",
+                                "Signal Strength (0-4 / dBm):" + " / "+signalStrength.toString());
+                        ;
+//                        + getDbm(signalStrength))
+//                        getLevel(signalStrength) +
+
+                      requireActivity().runOnUiThread(() -> {
+                          homeViewModel.getSlotData(requireActivity(),slotIndex);
+                          homeViewModel.showCellinfo(requireActivity());
+                      });
+
+
+                    }
+                }, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+
+                Looper.loop();
+            }
+        }).start();
+
+    }
+
+
+    @Override
+    public void onResume() {
+        super.onResume();
+//        if (timer == null) {
+//            timer = new Timer();
+//            timer.scheduleAtFixedRate(new TimerTask() {
+//                @Override
+//                public void run() {
+//                    requireActivity().runOnUiThread(new Runnable() {
+//                        @Override
+//                        public void run() {
+//
+//
+//
+//                        }
+//                    });
+//                }
+//            }, 500, 1500);
+//        }
+    }
+
+
+
 }

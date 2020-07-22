@@ -22,6 +22,11 @@ public class BaseStation {
 
     private double lat;                     // Base station latitude
 
+    private int bsic_psc_pci;                        /* bsic for GSM, psc for WCDMA, pci for LTE,
+                                               GSM has #getPsc() but always get Integer.MAX_VALUE,
+                                               psc is undefined for GSM */
+
+
     private GSMStation gsmStation = new GSMStation();
 
     private WCDMAStation wcdmaStation = new WCDMAStation();
@@ -36,6 +41,15 @@ public class BaseStation {
 
     public int getTac() {
         return tac;
+    }
+
+
+    public int getBsic_psc_pci() {
+        return bsic_psc_pci;
+    }
+
+    public void setBsic_psc_pci(int bsic_psc_pci) {
+        this.bsic_psc_pci = bsic_psc_pci;
     }
 
     public void setTac(int tac) {
