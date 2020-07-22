@@ -2,6 +2,8 @@ package com.crowd.air.tower_info.home_ui.fragments;
 
 import android.content.Context;
 import android.graphics.Point;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -20,6 +22,10 @@ import androidx.fragment.app.Fragment;
 
 import com.crowd.air.R;
 
+import java.net.NetworkInterface;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * A simple {@link Fragment} subclass.
  * Use the {@link DeviceInfoFragment#newInstance} factory method to
@@ -30,7 +36,7 @@ public class DeviceInfoFragment extends Fragment {
 
     int mWidthPixels;
     int mHeightPixels;
-    private TextView screenInchesTv, UID_value_tv, Manufacturer_value_tv, Hardware_value_tv, Model_value_tv,
+    private TextView mac_address_tv,screenInchesTv, UID_value_tv, Manufacturer_value_tv, Hardware_value_tv, Model_value_tv,
             Brand_value_tv, android_id_tv, Serial_nO_tv, ScreenResolution_tv, screen_density_tv,
             BootLoader_tv, User_tv, Host, Version_tv, Fingerprint_tv,system_tv;
 
@@ -57,11 +63,45 @@ public class DeviceInfoFragment extends Fragment {
         return inflater.inflate(R.layout.fragment_device_info, container, false);
     }
 
+    public static String getMacAddr() {
+        try {
+            List<NetworkInterface> all = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface nif : all) {
+                if (!nif.getName().equalsIgnoreCase("wlan0")) continue;
+
+                byte[] macBytes = nif.getHardwareAddress();
+                if (macBytes == null) {
+                    return "";
+                }
+
+                StringBuilder res1 = new StringBuilder();
+                for (byte b : macBytes) {
+                    String hex = Integer.toHexString(b & 0xFF);
+                    if (hex.length() == 1)
+                        hex = "0".concat(hex);
+                    res1.append(hex.concat(":"));
+                }
+
+                if (res1.length() > 0) {
+                    res1.deleteCharAt(res1.length() - 1);
+                }
+                return res1.toString();
+            }
+        } catch (Exception ex) {
+        }
+        return "";
+    }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         initViews(view);
+
+        WifiManager wifiManager = (WifiManager) requireActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        WifiInfo wInfo = wifiManager.getConnectionInfo();
+        String macAddress = wInfo.getMacAddress();
+        mac_address_tv.setText(getMacAddr());
         TelephonyManager telephonyManager = (TelephonyManager) requireActivity().getSystemService(Context.TELEPHONY_SERVICE);
         setRealDeviceSizeInPixels();
 
@@ -165,6 +205,7 @@ public class DeviceInfoFragment extends Fragment {
     }
 
     private void initViews(View view) {
+        mac_address_tv = view.findViewById(R.id.mac_address_tv);
         screenInchesTv = view.findViewById(R.id.screenInches_tv);
         UID_value_tv = view.findViewById(R.id.UID_value_tv);
         Brand_value_tv = view.findViewById(R.id.Brand_value_tv);

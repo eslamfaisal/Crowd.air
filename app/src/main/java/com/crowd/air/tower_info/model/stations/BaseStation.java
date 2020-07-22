@@ -1,10 +1,15 @@
 package com.crowd.air.tower_info.model.stations;
 
 import com.crowd.air.tower_info.StationType;
+import com.crowd.air.tower_info.model.apis.CellLocationResponse;
 
 public class BaseStation {
 
     // region Common fields
+
+    private long requestTime;
+
+    private long time;
 
     private StationType type;               // Signal type, GSM or WCDMA or LTE or CDMA
 
@@ -26,6 +31,7 @@ public class BaseStation {
                                                GSM has #getPsc() but always get Integer.MAX_VALUE,
                                                psc is undefined for GSM */
 
+    private CellLocationResponse cellLocation = new CellLocationResponse();
 
     private GSMStation gsmStation = new GSMStation();
 
@@ -39,10 +45,37 @@ public class BaseStation {
     public BaseStation() {
     }
 
+    public long getTime() {
+        return time;
+    }
+
+    public void setTime(long time) {
+        this.time = time;
+    }
+
+    public CellLocationResponse getCellLocation() {
+        return cellLocation;
+    }
+
+    public void setCellLocation(CellLocationResponse cellLocation) {
+        this.cellLocation = cellLocation;
+    }
+
+    public long getRequestTime() {
+        return requestTime;
+    }
+
+    public void setRequestTime(long requestTime) {
+        this.requestTime = requestTime;
+    }
+
     public int getTac() {
         return tac;
     }
 
+    public void setTac(int tac) {
+        this.tac = tac;
+    }
 
     public int getBsic_psc_pci() {
         return bsic_psc_pci;
@@ -51,11 +84,6 @@ public class BaseStation {
     public void setBsic_psc_pci(int bsic_psc_pci) {
         this.bsic_psc_pci = bsic_psc_pci;
     }
-
-    public void setTac(int tac) {
-        this.tac = tac;
-    }
-
 
     public StationType getType() {
         return type;

@@ -7,7 +7,6 @@ import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
-import android.telephony.CellInfo;
 import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
@@ -32,11 +31,12 @@ import com.crowd.air.tower_info.model.apis.CellLocationResponse;
 import com.crowd.air.tower_info.model.apis.CellRequest;
 import com.crowd.air.tower_info.model.stations.BaseStation;
 import com.crowd.air.tower_info.server.BaseClient;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Timer;
-import java.util.TimerTask;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -50,10 +50,9 @@ public class SlotOneFragment extends Fragment {
 
 
     private static final String TAG = "SlotOneFragment";
-
-
+    private CellLocationResponse cellLocationResponse;
     // COMMON TEXTS
-    private TextView iccid_tv, sim_operator_tv, operator_tv,
+    private TextView time, iccid_tv, sim_operator_tv, operator_tv,
             mcc_tv, mnc_tv, tac_tv,
             cell_type_tv, dbm_signal_tv,
             signalLevel_signal_tv, asuLevel_signal_tv;
@@ -84,11 +83,42 @@ public class SlotOneFragment extends Fragment {
             lte_signal_strength_view;
 
 
-    private TextView cell_lon_tv,cell_lat_tv,cell_accuracy_tv,cell_address_tv;
+    private TextView cell_lon_tv, cell_lat_tv, cell_accuracy_tv, cell_address_tv;
+    private BaseStation baseStation;
 
+    Callback<CellLocationResponse> callback = new Callback<CellLocationResponse>() {
+        @Override
+        public void onResponse(Call<CellLocationResponse> call, Response<CellLocationResponse> response) {
+            Log.d(TAG, "onResponse: " + response.body());
+            cellLocationResponse = response.body();
+            baseStation.setCellLocation(cellLocationResponse);
+            uploadStation();
+            if (response.isSuccessful()) {
+                if (response.body() != null) {
+                    try {
+                        cell_lon_tv.setText(response.body().getLon().toString());
+                        cell_lat_tv.setText(response.body().getLat().toString());
+                        cell_accuracy_tv.setText(response.body().getAccuracy().toString());
+                        cell_address_tv.setText(response.body().getAddress());
+                    } catch (Exception e) {
+                        cell_lon_tv.setText("Zero balance");
+                        cell_lat_tv.setText("Invalid token");
+                    }
+
+                }
+
+            }
+        }
+
+        @Override
+        public void onFailure(Call<CellLocationResponse> call, Throwable t) {
+
+        }
+    };
     private int slotIndex = 0;
-
     private Timer timer;
+    private String networkInfoStr;
+
 
     public static SlotOneFragment newInstance(int slotIndex) {
         SlotOneFragment fragment = new SlotOneFragment();
@@ -97,7 +127,6 @@ public class SlotOneFragment extends Fragment {
         fragment.setArguments(bundle);
         return fragment;
     }
-
 
     @Override
     public void onDestroy() {
@@ -133,6 +162,7 @@ public class SlotOneFragment extends Fragment {
     }
 
     private void initView(View view) {
+        time = view.findViewById(R.id.time);
         iccid_tv = view.findViewById(R.id.iccid_tv);
         sim_operator_tv = view.findViewById(R.id.sim_operator_tv);
         operator_tv = view.findViewById(R.id.operator_tv);
@@ -201,25 +231,6 @@ public class SlotOneFragment extends Fragment {
         cell_address_tv = view.findViewById(R.id.cell_address_tv);
     }
 
-    Callback<CellLocationResponse> callback = new Callback<CellLocationResponse>() {
-        @Override
-        public void onResponse(Call<CellLocationResponse> call, Response<CellLocationResponse> response) {
-            Log.d(TAG, "onResponse: "+response.body());
-
-            if (response.isSuccessful()){
-                cell_lon_tv.setText(response.body().getLon().toString());
-                cell_lat_tv.setText(response.body().getLat().toString());
-                cell_accuracy_tv.setText(response.body().getAccuracy().toString());
-                cell_address_tv.setText(response.body().getAddress().toString());
-            }
-        }
-
-        @Override
-        public void onFailure(Call<CellLocationResponse> call, Throwable t) {
-
-        }
-    };
-
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
@@ -247,7 +258,7 @@ public class SlotOneFragment extends Fragment {
                     } else {
                         mnc_tv.setText(String.valueOf(subscriptionInfos.get(slotIndex).getMnc()));
                     }
-                }catch (Exception e){
+                } catch (Exception e) {
 
                 }
 
@@ -257,9 +268,12 @@ public class SlotOneFragment extends Fragment {
 
         homeViewModel.getBaseStation().observe(getViewLifecycleOwner(), baseStation -> {
 
+            this.baseStation = baseStation;
             BaseClient.getApi().getCellLocation(buildRequestObject(baseStation)).enqueue(callback);
-            Log.d(TAG, "onChangedbaseStation: "+baseStation.toString());
 
+            Log.d(TAG, "onChangedbaseStation: " + baseStation.toString());
+
+            time.setText(new Date(baseStation.getTime()).toString() + "\n" + new Date().toString());
             // common fields
             cell_type_tv.setText(String.valueOf(baseStation.getType()));
 
@@ -271,7 +285,6 @@ public class SlotOneFragment extends Fragment {
             switch (baseStation.getType()) {
 
                 case GSM: {
-
 
 
                     // region GSM views
@@ -498,23 +511,27 @@ public class SlotOneFragment extends Fragment {
 
         });
 
-        homeViewModel.getCallList().observe(getViewLifecycleOwner(), new Observer<List<CellInfo>>() {
-            @Override
-            public void onChanged(List<CellInfo> cellInfos) {
-                Log.d(TAG, "onChanged: " + cellInfos.size());
-                Log.d(TAG, "allshowCellinfo: " + cellInfos.toString());
-
-
-            }
+        homeViewModel.getCallList().observe(getViewLifecycleOwner(), cellInfos -> {
+            Log.d(TAG, "onChanged: " + cellInfos.size());
+            Log.d(TAG, "allshowCellinfo: " + cellInfos.toString());
         });
 
 
     }
 
-    private void validateStationsView() {
+    private boolean isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager) requireActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
 
+        return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnected();
     }
 
+    private void uploadStation() {
+        FirebaseFirestore.getInstance().collection("stations")
+                .document().set(baseStation)
+                .addOnCompleteListener(task -> {
+
+                });
+    }
 
     private void validateFieldVisibility(TextView textView, String value) {
         try {
@@ -539,12 +556,11 @@ public class SlotOneFragment extends Fragment {
         return baseStation.getCid() & 0xFFFFFFF;
     }
 
-
-    private CellLocationRequest buildRequestObject(BaseStation baseStation){
+    private CellLocationRequest buildRequestObject(BaseStation baseStation) {
 
         CellLocationRequest cellLocationRequest = new CellLocationRequest();
 
-        cellLocationRequest.setToken("93bb0cb1301e27");
+        cellLocationRequest.setToken("b3ca9bfa056d87");
         cellLocationRequest.setRadio(baseStation.getType().toString());
         cellLocationRequest.setMnc(baseStation.getMnc());
         cellLocationRequest.setMcc(baseStation.getMcc());
@@ -566,8 +582,6 @@ public class SlotOneFragment extends Fragment {
 
     }
 
-    private String networkInfoStr;
-
     public void startGatherMetrics() {
 
         ConnectivityManager connectivityManager = (ConnectivityManager) requireActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -585,7 +599,9 @@ public class SlotOneFragment extends Fragment {
                 networkInfoStr += "; " + connectivityManager.getNetworkCapabilities(network).toString();
             }
         }
-
+        TelephonyManager manager = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);
+        String carrierName = manager.getNetworkOperatorName();
+        
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -596,15 +612,14 @@ public class SlotOneFragment extends Fragment {
                         super.onSignalStrengthsChanged(signalStrength);
 
                         Log.d("A_NETWORK_METRICS",
-                                "Signal Strength (0-4 / dBm):" + " / "+signalStrength.toString());
-                        ;
-//                        + getDbm(signalStrength))
+                                "Signal Strength (0-4 / dBm):" + " / " + signalStrength.toString());
+                        //                        + getDbm(signalStrength))
 //                        getLevel(signalStrength) +
 
-                      requireActivity().runOnUiThread(() -> {
-                          homeViewModel.getSlotData(requireActivity(),slotIndex);
-                          homeViewModel.showCellinfo(requireActivity());
-                      });
+                        requireActivity().runOnUiThread(() -> {
+                            homeViewModel.getSlotData(requireActivity(), slotIndex);
+                            homeViewModel.showCellinfo(requireActivity());
+                        });
 
 
                     }
@@ -637,7 +652,6 @@ public class SlotOneFragment extends Fragment {
 //            }, 500, 1500);
 //        }
     }
-
 
 
 }

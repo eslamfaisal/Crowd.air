@@ -125,10 +125,18 @@ public class HomeViewModel extends ViewModel {
 
     }
 
+
     private BaseStation bindData(CellInfo cellInfo) {
 
+//        cellInfo.getTimestampMillis()
         Log.d(TAG, "bindDatabindData: ");
-        BaseStation station = null;
+        BaseStation station = new BaseStation();
+
+        station.setTime(cellInfo.getTimeStamp());
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            station.setTime(cellInfo.getTimestampMillis());
+        }
 
         if (cellInfo instanceof CellInfoGsm) {
             //2G
@@ -189,7 +197,6 @@ public class HomeViewModel extends ViewModel {
 
             CellIdentityWcdma cellIdentityWcdma = cellInfoWcdma.getCellIdentity();
 
-            station = new BaseStation();
 
             station.setType(StationType.WCDMA);
 
@@ -238,7 +245,6 @@ public class HomeViewModel extends ViewModel {
             CellInfoLte cellInfoLte = (CellInfoLte) cellInfo;
             CellIdentityLte cellIdentityLte = cellInfoLte.getCellIdentity();
 
-            station = new BaseStation();
 
             station.setType(StationType.LTE);
 
@@ -302,7 +308,7 @@ public class HomeViewModel extends ViewModel {
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && cellInfo instanceof CellInfoNr) {
             CellInfoNr cellInfoNr = (CellInfoNr) cellInfo;
 
-            station = new BaseStation();
+
             station.setType(StationType.NR);
 
             station.getNrStation().getNrSignalStrength().setAsuLevel(cellInfoNr.getCellSignalStrength().getAsuLevel());
