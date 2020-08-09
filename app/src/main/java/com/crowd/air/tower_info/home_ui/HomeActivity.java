@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.viewpager.widget.ViewPager;
 
+import com.crowd.air.BasselResponse;
 import com.crowd.air.R;
 import com.crowd.air.tower_info.model.apis.CellLocationRequest;
 import com.crowd.air.tower_info.model.apis.CellLocationResponse;
@@ -94,6 +95,18 @@ public class    HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
+        BaseClient.getApi().getBasselResponse().enqueue(new Callback<List<BasselResponse>>() {
+            @Override
+            public void onResponse(Call<List<BasselResponse>> call, Response<List<BasselResponse>> response) {
+
+
+            }
+
+            @Override
+            public void onFailure(Call<List<BasselResponse>> call, Throwable t) {
+
+            }
+        });
         deviceInfo = new DeviceInfo();
 
 

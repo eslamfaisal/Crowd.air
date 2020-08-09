@@ -10,7 +10,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 
 public class BaseClient {
-    private static final String BASE_URL = "https://us1.unwiredlabs.com/";
+    //http://springrest.us-east-2.elasticbeanstalk.com/api/customers
+    private static final String BASE_URL = "https://us1.unwiredlabs.com/v2/process.php/";
     private static Retrofit retrofit = null;
 
     private static OkHttpClient buildClient() {

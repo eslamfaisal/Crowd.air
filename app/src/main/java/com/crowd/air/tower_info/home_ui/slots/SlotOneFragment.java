@@ -1,6 +1,9 @@
 package com.crowd.air.tower_info.home_ui.slots;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkInfo;
@@ -20,6 +23,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -31,6 +35,14 @@ import com.crowd.air.tower_info.model.apis.CellLocationResponse;
 import com.crowd.air.tower_info.model.apis.CellRequest;
 import com.crowd.air.tower_info.model.stations.BaseStation;
 import com.crowd.air.tower_info.server.BaseClient;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
@@ -46,7 +58,7 @@ import retrofit2.Response;
 /**
  * A placeholder fragment containing a simple view.
  */
-public class SlotOneFragment extends Fragment {
+public class SlotOneFragment extends Fragment implements OnMapReadyCallback {
 
 
     private static final String TAG = "SlotOneFragment";
@@ -100,6 +112,35 @@ public class SlotOneFragment extends Fragment {
                         cell_lat_tv.setText(response.body().getLat().toString());
                         cell_accuracy_tv.setText(response.body().getAccuracy().toString());
                         cell_address_tv.setText(response.body().getAddress());
+                        LatLng currentLatLng = new LatLng(response.body().getLat(),
+                                response.body().getLon());
+                        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(currentLatLng,
+                                16);
+                        googleMap.moveCamera(update);
+                        // Creating a marker
+                        MarkerOptions markerOptions = new MarkerOptions();
+
+                        // Setting the position for the marker
+                        markerOptions.position(currentLatLng);
+
+                        // Setting the title for the marker.
+                        // This will be displayed on taping the marker
+                        markerOptions.title(response.body().getAddress());
+
+                        // Clears the previously touched position
+                        googleMap.clear();
+
+                        // Animating to the touched position
+                        googleMap.animateCamera(CameraUpdateFactory.newLatLng(currentLatLng));
+                        List<LatLng> latLngs = new  ArrayList<>();
+                        latLngs.add(currentLatLng);
+                        latLngs.add(new LatLng(googleMap.getMyLocation().getLatitude(),googleMap.getMyLocation().getLongitude()));
+                        // Placing a marker on the touched position
+                        googleMap.addMarker(markerOptions);
+                        googleMap.addPolyline(new PolylineOptions()
+                                .addAll(latLngs)
+                                .width(5)
+                                .color(Color.RED));
                     } catch (Exception e) {
                         cell_lon_tv.setText("Zero balance");
                         cell_lat_tv.setText("Invalid token");
@@ -155,10 +196,20 @@ public class SlotOneFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        initMap();
 
         initView(view);
 
-        startGatherMetrics();
+
+
+    }
+
+    private void initMap() {
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
+
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
     }
 
     private void initView(View view) {
@@ -516,7 +567,7 @@ public class SlotOneFragment extends Fragment {
             Log.d(TAG, "allshowCellinfo: " + cellInfos.toString());
         });
 
-
+        startGatherMetrics();
     }
 
     private boolean isNetworkConnected() {
@@ -560,7 +611,7 @@ public class SlotOneFragment extends Fragment {
 
         CellLocationRequest cellLocationRequest = new CellLocationRequest();
 
-        cellLocationRequest.setToken("b3ca9bfa056d87");
+        cellLocationRequest.setToken("8ae81d0cb4ae65");
         cellLocationRequest.setRadio(baseStation.getType().toString());
         cellLocationRequest.setMnc(baseStation.getMnc());
         cellLocationRequest.setMcc(baseStation.getMcc());
@@ -599,9 +650,9 @@ public class SlotOneFragment extends Fragment {
                 networkInfoStr += "; " + connectivityManager.getNetworkCapabilities(network).toString();
             }
         }
-        TelephonyManager manager = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);
+        TelephonyManager manager = (TelephonyManager) requireActivity().getSystemService(Context.TELEPHONY_SERVICE);
         String carrierName = manager.getNetworkOperatorName();
-        
+
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -653,5 +704,16 @@ public class SlotOneFragment extends Fragment {
 //        }
     }
 
+    GoogleMap googleMap;
 
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        this.googleMap = googleMap;
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(requireActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+        googleMap.setMyLocationEnabled(true);
+
+    }
 }
